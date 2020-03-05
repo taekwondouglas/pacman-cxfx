@@ -1,0 +1,102 @@
+package presentation
+
+import "app"
+import "fps"
+import "gam"
+import "gfx"
+import "gui"
+import "mat"
+import "v3"
+import "v4"
+import "m44"
+
+var ARCADE_MODEL_LOADED bool = false
+var ARCADE_MODEL gfx.ModelId = gfx.ModelInvalid()
+
+var HOME_SCREEN_CAMERA gam.CameraId
+var HOME_SCREEN_WORLD mat.m44
+
+var DIFUSE gfx.TextureId = gfx.InvalidTexture()
+var SPECULAR gfx.TextureId = gfx.InvalidTexture()
+var BRDF gfx.TextureId = gfx.InvalidTexture()
+
+func NewHomeScreen() (screen gui.ScreenId) {
+  screen = gui.ScreenCreate("homeScreen")
+  gui.ControlSetDock(screen.base, gui.DOCK_FILL)
+	gui.ScreenSetDuration(screen, -1.0D)
+	gui.ScreenSetOnEvent(screen, "presentation", "homeScreenOnEvent")
+	gui.ScreenSetOnUpdate(screen, "presentation", "homeScreenOnUpdate")
+	gui.ScreenSetOnRender(screen, "presentation", "homeScreenOnRender")
+	{
+    var label gui.LabelId= gui.LabelCreate("playLabel")
+    gui.ControlAddChild(screen.base, label.base)
+		gui.ControlSetBounds(label.base, v4.make(0.0, 0.0, gfx.gfx_width, gfx.gfx_height))
+		gui.ControlSetAlign(label.base, gui.ALIGN_CENTER)
+		gui.LabelSetFont(label, gui.g_boldFont)
+		gui.LabelSetText(label, app.Name())
+		gui.LabelSetSize(label, gui.g_fontSizeTitle)
+		gui.LabelSetAlign(label, gui.ALIGN_CENTER)
+		gui.LabelSetColor(label, gui.g_gold)
+  }
+
+  if bool.not(ARCADE_MODEL_LOADED) {
+    printf("loading %s/models/%s/%s\n", app.DataDir(), "arcade5", "scene.gltf")
+    ARCADE_MODEL = gfx.ModelCreateFromFile(sprintf("%s/models/%s/", app.DataDir(), "arcade5"), "scene.gltf", gfx.MODEL_GEOMETRY | gfx.MODEL_ANIMATION)
+
+    SPECULAR = gfx.TextureCreateCube(sprintf("%s/textures/skybox0/", app.DataDir()), ".jpg",
+  		gfx.FORMAT_R8_G8_B8_A8, 0, 0, -1, false)
+  	DIFUSE= gfx.TextureCreateCube(sprintf("%s/textures/irradiance/", app.DataDir()), ".png",
+  		gfx.FORMAT_R8_G8_B8_A8, 0, 0, -1, false)
+  	BRDF = gfx.TextureCreate(sprintf("%s/textures/brdfLUT.png", app.DataDir()),
+  		gfx.FORMAT_R8_G8_B8_A8, 0, 0, 0, false)
+  }
+
+  HOME_SCREEN_CAMERA = gam.CameraCreate()
+	gam.CameraSetProjection(HOME_SCREEN_CAMERA, 1.0, 10000.0, 0.5, gfx.gfx_viewportSize.x, gfx.gfx_viewportSize.y, true)
+	gam.CameraSetPosition(HOME_SCREEN_CAMERA, v3.make(0.0, 50.0, 20.0), true)
+	gam.CameraSetYawPitch(HOME_SCREEN_CAMERA, 0.0, 0.0, true)
+
+  HOME_SCREEN_WORLD = m44.makef_SAT(1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+}
+
+func homeScreenOnEvent(controlIndex i32, controlAction i32) {
+  var key i32 = gui.CurrentEvent.keyboard.key
+	var action i32 = gui.CurrentEvent.keyboard.action
+	var mods i32 = gui.CurrentEvent.keyboard.mods
+
+  if mods == app.MOD_NONE {
+		// exit app
+		if key == app.KEYCODE_ESCAPE && action == app.KEY_PRESS {
+			app.Exit()
+		}
+  }
+
+  //gam.TpsCameraProcess(HOME_SCREEN_CAMERA, &gui.CurrentEvent)
+  gam.FreeCameraProcess(HOME_SCREEN_CAMERA, &gui.CurrentEvent)
+}
+
+func homeScreenOnUpdate(controlIndex i32, controlAction i32) {
+  //gam.TpsCameraUpdate(HOME_SCREEN_CAMERA, fps.DeltaSecond(), v3.ZERO, 50.0)
+  gam.FreeCameraUpdate(HOME_SCREEN_CAMERA, fps.DeltaSecond())
+}
+
+func homeScreenOnRender(controlIndex i32, controlAction i32) {
+  var view mat.m44 = gam.CameraGetView(HOME_SCREEN_CAMERA)
+	var projection mat.m44 = gam.CameraGetProjection(HOME_SCREEN_CAMERA)
+	var cameraPosition mat.v3 = gam.CameraGetPosition(HOME_SCREEN_CAMERA)
+
+  gfx.DisableBlending()
+	gfx.DepthState(true, gfx.LESS, true)
+  gfx.Clear(gfx.COLOR_BUFFER_BIT | gfx.DEPTH_BUFFER_BIT, v4.make(0.3, 0.5, 0.6, 1.0), 1.0D, 0)
+
+  gfx.RenderBatches(false)
+
+  gfx.ModelSetWorld(ARCADE_MODEL, HOME_SCREEN_WORLD)
+	gfx.ModelSetView(ARCADE_MODEL, view)
+	gfx.ModelSetProjection(ARCADE_MODEL, projection)
+	gfx.ModelSetEnvironmentSpecular(ARCADE_MODEL, SPECULAR)
+	gfx.ModelSetEnvironmentDiffuse(ARCADE_MODEL, DIFUSE)
+	gfx.ModelSetBRDF(ARCADE_MODEL, BRDF)
+	gfx.ModelSetCameraPosition(ARCADE_MODEL, cameraPosition)
+	gfx.ModelRender(ARCADE_MODEL)
+}

@@ -1,0 +1,71 @@
+package domain
+
+import "gfx"
+import "mat"
+import "utils"
+
+// Globals
+var PLAYER_MODEL_PATH str = "pacman"
+var PLAYER_MODEL_FILENAME str = "scene.gltf"
+var PLAYER_MODEL_SCALE f32 = 10.0
+var PLAYER_MODEL_ROTATION f32 = 0.0
+var PLAYER_ANIM_SPEED f32 = 1.0
+
+var PLAYER_SPAWN_LINE i32 = 23
+var PLAYER_SPAWN_COLLUMN i32 = 14
+
+type Player struct {
+  model gfx.ModelId
+  scale f32
+  rotation f32
+  speed f32
+
+  index_x i32
+  index_y i32
+  pos mat.v3
+
+  world mat.m44
+}
+
+func newPlayer() (pl Player) {
+  // load player model
+  printf("loading %s/models/%s/%s\n", app.DataDir(), PLAYER_MODEL_PATH, PLAYER_MODEL_FILENAME)
+  pl.model = gfx.ModelCreateFromFile(sprintf("%s/models/%s/", app.DataDir(), PLAYER_MODEL_PATH), PLAYER_MODEL_FILENAME, gfx.MODEL_GEOMETRY | gfx.MODEL_ANIMATION)
+
+  pl.scale = PLAYER_MODEL_SCALE
+  pl.rotation = PLAYER_MODEL_ROTATION
+  pl.speed = PLAYER_ANIM_SPEED
+
+  pl.index_x = PLAYER_SPAWN_LINE
+  pl.index_y = PLAYER_SPAWN_COLLUMN
+  pl.pos = utils.IndexToPosition(PLAYER_SPAWN_LINE, PLAYER_SPAWN_COLLUMN)
+
+  pl.world = m44.makef_SAT(pl.scale, pl.scale, pl.scale, pl.pos.x, pl.pos.y, pl.pos.z, 0.0, 0.0, 0.0, 0.0)
+}
+
+func renderPlayer(pl Player, view mat.m44, projection mat.m44, cameraPosition mat.v3, diffuse gfx.TextureId, specular gfx.TextureId, brdf gfx.TextureId) {
+  gfx.ModelSetWorld(pl.model, pl.world)
+	gfx.ModelSetView(pl.model, view)
+	gfx.ModelSetProjection(pl.model, projection)
+	gfx.ModelSetEnvironmentSpecular(pl.model, specular)
+	gfx.ModelSetEnvironmentDiffuse(pl.model, diffuse)
+	gfx.ModelSetBRDF(pl.model, brdf)
+	gfx.ModelSetCameraPosition(pl.model, cameraPosition)
+	gfx.ModelRender(pl.model)
+}
+
+func updatePlayer(pl Player, dt f32) {
+  // load animation
+  var anim gfx.AnimationId = gfx.ModelGetAnimation(pl.model, 0)
+
+  // start animation
+  var step f32 = dt * pl.speed
+	if gfx.AnimationIsValid(anim) {
+		gfx.AnimationUpdate(anim, step, true, -1.0)
+	}
+	gfx.ModelUpdate(pl.model, anim, step, true)
+}
+
+/*func PlayerMove(player Player) (player Player) {
+
+}*/

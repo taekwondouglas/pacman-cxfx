@@ -1,0 +1,92 @@
+package domain
+
+import "gfx"
+import "mat"
+import "v2"
+
+import "utils"
+
+// Point cell types Types
+var PATH_CELL_WITH_SIMPLE_POINT i32 = 0
+var PATH_CELL_WITH_SUPER_POINT i32 = 2
+
+var POINT_TEXTURES_LOADED bool = false
+var SIMPLE_POINT_TEXTURES []gfx.TextureId
+var SUPER_POINT_TEXTURES []gfx.TextureId
+
+type Point struct {
+  index_x i32
+  index_y i32
+  active bool
+  pos v3
+}
+
+func newPoint(line i32, collumn i32) (point Point) {
+  point.index_x = collumn
+  point.index_y = line
+  point.active = true
+  point.pos = utils.IndexToPosition(line, collumn)
+  loadPointTextures()
+}
+
+func loadPointTextures() {
+  if bool.not(POINT_TEXTURES_LOADED) {
+    for i:=0; i<5; i++ { // len(SIMPLE_POINT_TEXTURES)
+      SIMPLE_POINT_TEXTURES = append(SIMPLE_POINT_TEXTURES, gfx.TextureCreate(sprintf("%s/textures/blocks/grass.jpg", app.DataDir()), gfx.FORMAT_R8_G8_B8_A8, 0, 0, -1, false))
+      SUPER_POINT_TEXTURES = append(SUPER_POINT_TEXTURES, gfx.TextureCreate(sprintf("%s/textures/blocks/grass.jpg", app.DataDir()), gfx.FORMAT_R8_G8_B8_A8, 0, 0, -1, false))
+    }
+  }
+  POINT_TEXTURES_LOADED = true
+}
+
+type SimplePoint struct {
+  point Point
+  mesh gfx.MeshId
+}
+
+func newSimplePoint(line i32, collumn i32) (simple SimplePoint) {
+  simple.point = newPoint(line, collumn)
+  simple.mesh = gfx.MeshLock(gfx.TRIANGLES, gfx.UNSIGNED_SHORT, 36, gfx.g_vertexLayout, 36)
+}
+
+func renderSimplePoint(simple SimplePoint, wrld mat.m44) {
+  gfx.EffectAssignM44(gfx.g_fxTexture3D, gfx.UNIFORM_WORLD, wrld, false)
+	gfx.MeshRender(simple.mesh)
+}
+
+func updateSimplePoint(simple SimplePoint) {
+  gfx.MeshBegin(simple.mesh)
+	gfx.MeshAppendBox(simple.mesh, false, false,
+		simple.point.pos,
+		v3.make(2.0, 0.0, 0.0),
+		v3.make(0.0, 2.0, 0.0),
+		v3.make(0.0, 0.0, 2.0),
+		v4.ONE)
+	gfx.MeshEnd(simple.mesh)
+}
+
+type SuperPoint struct {
+  point Point
+  mesh gfx.MeshId
+}
+
+func newSuperPoint(line i32, collumn i32) (super SuperPoint) {
+  super.point = newPoint(line, collumn)
+  super.mesh = gfx.MeshLock(gfx.TRIANGLES, gfx.UNSIGNED_SHORT, 36, gfx.g_vertexLayout, 36)
+}
+
+func renderSuperPoint(super SuperPoint, wrld mat.m44) {
+  gfx.EffectAssignM44(gfx.g_fxTexture3D, gfx.UNIFORM_WORLD, wrld, false)
+	gfx.MeshRender(super.mesh)
+}
+
+func updateSuperPoint(super SuperPoint) {
+  gfx.MeshBegin(super.mesh)
+	gfx.MeshAppendBox(super.mesh, false, false,
+		super.point.pos,
+		v3.make(3.5, 0.0, 0.0),
+		v3.make(0.0, 3.5, 0.0),
+		v3.make(0.0, 0.0, 3.5),
+		v4.ONE)
+	gfx.MeshEnd(super.mesh)
+}

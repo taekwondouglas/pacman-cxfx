@@ -1,0 +1,208 @@
+package main
+
+import "app"
+import "fps"
+import "gam"
+import "gfx"
+import "gui"
+import "mat"
+import "snd"
+import "phx"
+import "v1"
+import "v2"
+import "v3"
+import "v4"
+import "q4"
+import "m44"
+
+import "domain"
+
+var camera gam.CameraId
+var gameScreen gui.ScreenId
+
+//var board domain.Board
+var player domain.Player
+var cells []domain.Cell
+var g_cells []gfx.BatchId
+
+var world mat.m44
+var worldPosY f32 = -10.0
+var worldSizeX f32 = 2000.0
+var worldSizeZ f32 = 2000.0
+
+// TODO remove
+var skyMesh gfx.MeshId = gfx.InvalidMesh()
+var groundMesh gfx.MeshId = gfx.InvalidMesh()
+var texture gfx.TextureId = gfx.InvalidTexture()
+var skyDiffuse gfx.TextureId = gfx.InvalidTexture()
+var skySpecular gfx.TextureId = gfx.InvalidTexture()
+var brdf gfx.TextureId = gfx.InvalidTexture()
+var groundScale f32 = 2.0
+var groundRight f32 = worldSizeX / groundScale
+var groundBack f32 = worldSizeZ / groundScale
+var groundWidth i32 = 16
+var groundHeight i32 = 16
+
+func gameOnEvent(controlIndex i32, controlAction i32) {
+	var key i32 = gui.CurrentEvent.keyboard.key
+	var action i32 = gui.CurrentEvent.keyboard.action
+	var mods i32 = gui.CurrentEvent.keyboard.mods
+
+	if mods == app.MOD_NONE {
+		// exit app
+		if key == app.KEYCODE_ESCAPE && action == app.KEY_PRESS {
+			app.Exit()
+		}
+
+		// player movement
+		if key == app.KEYCODE_LEFT || key == app.KEYCODE_A {
+			//player = domain.PlayerChangeDirection(player, LEFT)
+		} else if key == app.KEYCODE_RIGHT || key == app.KEYCODE_D {
+			//player = domain.PlayerChangeDirection(player, RIGHT)
+		} else if key == app.KEYCODE_UP || key == app.KEYCODE_W {
+			//player = domain.PlayerChangeDirection(player, UP)
+		} else if key == app.KEYCODE_DOWN || key == app.KEYCODE_S {
+			//player = domain.PlayerChangeDirection(player, DOWN)
+		}
+	}
+
+	gam.FreeCameraProcess(camera, &gui.CurrentEvent)
+}
+
+func gameOnUpdate(controlIndex i32, controlAction i32) {
+	gam.FreeCameraUpdate(camera, fps.DeltaSecond())
+
+	var dts f64 = fps.DeltaSecond()
+	var dt f32 = f64.f32(dts)
+
+	world = m44.makef_SAT(1.0, 1.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+
+	//gam.TpsCameraUpdate(camera, dts, v3.ZERO, 30.0)
+
+	//domain.updateBoard(board)
+
+	//////////////////////////////////////////////////////////////////////////////
+	for i:=0; i<len(cells); i++ {
+		cells[i].batch = gfx.GetBatch(gfx.g_fxTexture3D, texture, 0, gfx.g_linearClamp, false, 31 * 28 * 12)
+	}
+
+	gfx.BeginBatches()
+	for i := 0; i < len(cells); i++ {
+		var batch gfx.BatchId = cells[i].batch
+		var mesh gfx.MeshId = gfx.BatchGetMesh(batch)
+		var tx f32 = i32.f32(cells[i].index_x) * 20.0
+		var ty f32 = worldPosY + 10.0
+		var tz f32 = i32.f32(cells[i].index_y) * 20.0
+		i32.print(mesh.mesh)
+		printf("x:%f, y:%f, z:%f\n", tx, ty, tz)
+		gfx.MeshAppendBox(mesh, false, false,
+			v3.make(tx, ty, tz),
+			v3.make(10.0, 0.0, 0.0),
+			v3.make(0.0, 10.0, 0.0),
+			v3.make(0.0, 0.0, 10.0),
+			v4.ONE)
+	}
+	gfx.EndBatches()
+	//////////////////////////////////////////////////////////////////////////////
+
+	domain.updatePlayer(player, dt)
+}
+
+func gameOnRender(controlIndex i32, controlAction i32) {
+	var view mat.m44 = gam.CameraGetView(camera)
+	var projection mat.m44 = gam.CameraGetProjection(camera)
+	var cameraPosition mat.v3 = gam.CameraGetPosition(camera)
+
+	gfx.DisableBlending()
+	gfx.DepthState(true, gfx.LESS, true)
+	gfx.Clear(gfx.COLOR_BUFFER_BIT | gfx.DEPTH_BUFFER_BIT, v4.make(0.3, 0.5, 0.6, 1.0), 1.0D, 0)
+
+	// render ground
+	gfx.EffectUse(gfx.g_fxTexture3D)
+	gfx.EffectAssignTexture(gfx.g_fxTexture3D, gfx.SAMPLER_COLOR_0, texture, gfx.g_linearWrap)
+	gfx.EffectAssignM44(gfx.g_fxTexture3D, gfx.UNIFORM_WORLD, m44.IDENTITY, false)
+	gfx.EffectAssignM44(gfx.g_fxTexture3D, gfx.UNIFORM_VIEW, view, false)
+	gfx.EffectAssignM44(gfx.g_fxTexture3D, gfx.UNIFORM_PROJECTION, projection, false)
+	gfx.MeshRender(groundMesh)
+
+	// render board
+  //gfx.EffectAssignM44(gfx.g_fxTexture3D, gfx.UNIFORM_WORLD, world, false)
+	//gfx.MeshRender(cell.mesh)
+	//domain.renderCell(cell, world, projection)
+	//domain.renderBoard(board)
+
+	gfx.RenderBatches(false)
+
+	// render player
+	domain.renderPlayer(player, view, projection, cameraPosition, skyDiffuse, skySpecular, brdf)
+}
+
+func main() () {
+  // init
+	StartCPUProfile("pacman_init", 100)
+	gam.Init("pacman", 1024, 768, 60, "")
+
+	groundMesh = gfx.MeshLock(gfx.TRIANGLES, gfx.UNSIGNED_SHORT, 6 * groundWidth * groundHeight, gfx.g_vertexLayout, 6 * groundWidth * groundHeight)
+	var groundScale f32 = 20.0 // FIXME needed?
+	gfx.MeshBegin(groundMesh)
+	gfx.MeshAppendPlane(groundMesh, false, true,
+		v3.make(0.0, worldPosY, 0.0),
+		v3.make(groundRight, 0.0, 0.0),
+		v3.GREEN,
+		v3.make(0.0, 0.0, groundBack),
+		groundWidth, groundHeight,
+		v4.make(0.0, 0.0, 10.0, 10.0),
+		v4.ONE)
+	gfx.MeshEnd(groundMesh)
+
+	texture = gfx.TextureCreate(sprintf("%s/textures/Skycoin-Cloud-BW-Vertical-on_black@2x.png", app.DataDir()),
+		gfx.FORMAT_R8_G8_B8_A8, 0, 0, -1, false)
+	skySpecular = gfx.TextureCreateCube(sprintf("%s/textures/skybox0/", app.DataDir()), ".jpg",
+		gfx.FORMAT_R8_G8_B8_A8, 0, 0, -1, false)
+	skyDiffuse= gfx.TextureCreateCube(sprintf("%s/textures/irradiance/", app.DataDir()), ".png",
+		gfx.FORMAT_R8_G8_B8_A8, 0, 0, -1, false)
+	brdf = gfx.TextureCreate(sprintf("%s/textures/brdfLUT.png", app.DataDir()),
+		gfx.FORMAT_R8_G8_B8_A8, 0, 0, 0, false)
+
+	// init camera
+  camera = gam.CameraCreate()
+	gam.CameraSetProjection(camera, 1.0, 10000.0, 0.5, gfx.gfx_viewportSize.x, gfx.gfx_viewportSize.y, true)
+	gam.CameraSetPosition(camera, v3.make(0.0, worldPosY + 10.0, 20.0), true)
+	gam.CameraSetYawPitch(camera, 0.0, 0.0, true)
+
+	// init board
+	//board = domain.newBoard()
+	//////////////////////////////////////////////////////////////////////////////
+	var line [28]i32
+  for i:=0; i<31; i++ {
+    line = domain.loadBoardLine(i)
+    for j:=0; j<28; j++ {
+      if line[j] == domain.CODE_WALL {
+				cells = append(cells, domain.newCell(i, j, domain.CELL_TYPE_PATH))
+			}
+    }
+  }
+	//////////////////////////////////////////////////////////////////////////////
+
+	// init player
+	player = domain.newPlayer()
+
+	// gameScreen
+	gameScreen = gui.ScreenCreate("gameScreen")
+	gui.ControlSetDock(gameScreen.base, gui.DOCK_FILL)
+	gui.ScreenSetDuration(gameScreen, -1.0D)
+	gui.ScreenSetOnEvent(gameScreen, "main", "gameOnEvent")
+	gui.ScreenSetOnUpdate(gameScreen, "main", "gameOnUpdate")
+	gui.ScreenSetOnRender(gameScreen, "main", "gameOnRender")
+
+	// run
+	gui.ScreenShow(gameScreen)
+	StopCPUProfile("pacman_init")
+	StartCPUProfile("pacman_run", 100)
+	gam.Run(2U)
+
+	// destroy
+  //gfx.MeshUnlock(cell.mesh)
+	StopCPUProfile("pacman_run")
+	gam.Destroy()
+}

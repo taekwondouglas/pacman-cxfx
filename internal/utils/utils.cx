@@ -1,0 +1,21 @@
+package utils
+
+import "app"
+import "gfx"
+import "mat"
+import "v3"
+
+var BOARD_LINES i32 = 31
+var BOARD_COLLUMNS i32 = 28
+var CELL_SIZE f32 = 20.0
+
+func IndexToPosition(line i32, col i32) (pos mat.v3) {
+  pos.x = -1.0*(i32.f32(BOARD_LINES)*CELL_SIZE/2.0) + i32.f32(line)*CELL_SIZE
+  pos.y = CELL_SIZE / 2.0
+  pos.z = -1.0*(i32.f32(BOARD_COLLUMNS)*CELL_SIZE/2.0) + i32.f32(col)*CELL_SIZE
+}
+
+func LoadModel(path str, filename str, options i32) (out gfx.ModelId) {
+	printf("loading '%s/%s'\n", path, filename)
+	out = gfx.ModelCreateFromFile(sprintf("%s/models/%s/", app.DataDir(), path), filename, options)
+}

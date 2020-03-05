@@ -1,0 +1,75 @@
+package domain
+
+import "app"
+import "gfx"
+import "mat"
+import "m44"
+import "v3"
+import "v4"
+
+// Globals
+var CELL_TYPE_WALL i32 = 0
+var CELL_TYPE_PATH i32 = 1
+var CELL_TYPE_GATE i32 = 2
+var CELL_TYPE_TELEPORT i32 = 3
+
+var CELL_WIDTH f32 = 20.0
+var CELL_HEIGHT f32 = 20.0
+var CELL_DEPTH f32 = 20.0
+
+var THEMES_COUNT i32 = 5
+var CELL_TEXTURES_LOADED bool = false
+var CELL_TEXTURES []gfx.TextureId
+
+type Cell struct {
+  ctype i32
+  index_x i32  // TODO remove
+  index_y i32  // TODO remove
+
+  mesh gfx.MeshId
+  batch gfx.BatchId
+  texture gfx.TextureId
+}
+
+func newCell(x i32, y i32, ctype i32) (cell Cell) {
+  cell.ctype = ctype
+  cell.index_x = x
+  cell.index_y = y
+
+  loadCellTextures()
+  cell.texture = CELL_TEXTURES[0]
+  cell.batch = gfx.GetBatch(gfx.g_fxTexture3D, cell.texture, 0, gfx.g_linearClamp, false, 31*28*12) // g_synthCount * 12
+  cell.mesh = gfx.BatchGetMesh(cell.batch)
+}
+
+func loadCellTextures () {
+  if bool.not(CELL_TEXTURES_LOADED) {
+    CELL_TEXTURES = append(CELL_TEXTURES, gfx.TextureCreate(sprintf("%s/textures/blocks/grass.jpg", app.DataDir()), gfx.FORMAT_R8_G8_B8_A8, 0, 0, -1, false))
+    CELL_TEXTURES = append(CELL_TEXTURES, gfx.TextureCreate(sprintf("%s/textures/blocks/wood.jpg", app.DataDir()), gfx.FORMAT_R8_G8_B8_A8, 0, 0, -1, false))
+    CELL_TEXTURES = append(CELL_TEXTURES, gfx.TextureCreate(sprintf("%s/textures/blocks/leaves.png", app.DataDir()), gfx.FORMAT_R8_G8_B8_A8, 0, 0, -1, false))
+  }
+}
+
+func updateCell(cell Cell) (cell Cell) {
+  cell.batch = gfx.GetBatch(gfx.g_fxTexture3D, cell.texture, 0, gfx.g_linearClamp, false, 31*28*12)
+}
+
+func renderCell_Old(cell Cell, wrld mat.m44, projection mat.m44) {
+  gfx.EffectUse(gfx.g_fxTexture3D)
+	gfx.EffectAssignTexture(gfx.g_fxTexture3D, gfx.SAMPLER_COLOR_0, cell.texture, gfx.g_linearWrap)
+	gfx.EffectAssignM44(gfx.g_fxTexture3D, gfx.UNIFORM_WORLD, wrld, false)
+	gfx.EffectAssignM44(gfx.g_fxTexture3D, gfx.UNIFORM_VIEW, m44.IDENTITY, false)
+	gfx.EffectAssignM44(gfx.g_fxTexture3D, gfx.UNIFORM_PROJECTION, projection, false)
+	gfx.MeshRender(cell.mesh)
+}
+
+func updateCell_Old(cell Cell) (cell Cell) {
+  gfx.MeshBegin(cell.mesh)
+	gfx.MeshAppendBox(cell.mesh, false, false,
+		v3.ZERO,
+		v3.make(CELL_WIDTH/2.0, 0.0, 0.0),
+		v3.make(0.0, CELL_HEIGHT/2.0, 0.0),
+		v3.make(0.0, 0.0, CELL_DEPTH/2.0),
+		v4.ONE)
+	gfx.MeshEnd(cell.mesh)
+}

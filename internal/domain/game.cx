@@ -1,0 +1,30 @@
+package domain
+
+import "gfx"
+import "mat"
+
+// Globals
+var WORLD_POS_Y f32 = -10.0
+var WORLD_SIZE_X f32 = 2000.0
+var WORLD_SIZE_Y f32 = 2000.0
+
+
+type Game struct {
+  player Player
+  board Board
+}
+
+func newGame() (game Game) {
+  game.player = newPlayer()
+  game.board = newBoard()
+}
+
+func renderGame(game Game, wrld mat.m44, view mat.m44, projection mat.m44, cameraPosition mat.v3, diffuse gfx.TextureId, specular gfx.TextureId, brdf gfx.TextureId) {
+  renderBoard(game.board, wrld)
+  renderPlayer(game.player, view, projection, cameraPosition, diffuse, specular, brdf)
+}
+
+func updateGame(game Game, dt f32) (game Game) {
+  updateBoard(game.board)
+	updatePlayer(game.player, dt)
+}
